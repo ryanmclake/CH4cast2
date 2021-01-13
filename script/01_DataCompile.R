@@ -6,10 +6,11 @@
 #################################################################
 
 if (!"pacman" %in% installed.packages()) install.packages("pacman")
-pacman::p_load(tidyverse,rjags,runjags,MCMCvis,lubridate,tidybayes,R2jags,ncdf4)
+pacman::p_load(tidyverse,rjags,runjags,MCMCvis,lubridate,tidybayes,R2jags,ncdf4,reshape2)
 
 ### Pull together all of the observed ebullition, hobo temperature, and catwalk temperature data from 2019
 
+# pull in catwalk data
 catwalk_main <- read_csv("./observed/Catwalk.csv", skip = 1)%>% 
   dplyr::filter(TIMESTAMP >= "2018-12-31 12:00:00") %>%
   dplyr::select(TIMESTAMP, wtr_2, wtr_3) %>%
@@ -24,6 +25,7 @@ catwalk_main <- read_csv("./observed/Catwalk.csv", skip = 1)%>%
   dplyr::summarize(temperature = mean(mean_ws_temp, na.rm = TRUE),
                    temperature_sd = sd(mean_ws_temp))
 
+# Pull in hobo data 
 hobo <- read_csv("./observed/Hobo.csv")%>% 
   dplyr::filter(Date >= "2018-12-31 12:00:00") %>%
   dplyr::rename(time = Date)%>%
@@ -92,6 +94,8 @@ temp_model_t4 <- left_join(catwalk_main, hobo_t4, by = "time") %>% filter(time >
   rename(cat_temp = temperature.x, cat_temp_sd = temperature_sd.x, hobo_temp = temperature.y, hobo_temp_sd = temperature_sd.y)%>%
   mutate(trap_id = "t1eb4") %>% select(time, trap_id, cat_temp, cat_temp_sd, hobo_temp, hobo_temp_sd)
 
+# Bind the trap specific temperature scaling models
+# Essentially this is the hobo temp and the catwalk temp
 temp_all <- rbind(temp_model_t1, temp_model_t2, temp_model_t3, temp_model_t4)
 
 # Read in the observed ebullition throughout the 2019
@@ -106,7 +110,11 @@ ebu <- read_csv("./observed/observed_ebu_rates.csv") %>%
 
 full_ebullition_model <- full_join(temp_all, ebu, by = c("trap_id", "time"))
 
+
+
 ### Pull together all of the forecast water temperature data from FLARE runs
+# These are the individual FLARE forecasts from the day we sampled ebullition out to the next day we would be sampling. 
+# Sadly - this is repeated because each .nc forecast file is its own separate inetity. 
 nc <- nc_open("./forecasted/forecast_H_2019_06_07_2019_06_10_F_10_552020_19_34.nc")
 t <- ncvar_get(nc,'time')
 full_time <- as.POSIXct(t, origin = '1970-01-01 00:00.00 UTC', tz = "EST")
@@ -488,11 +496,12 @@ FLARE <- rbind(temp_prediction_wk1,
                temp_prediction_wk21)
 colnames(FLARE)[-1] = paste0('ens_',colnames(FLARE)[-1])
 
-require(reshape2)
 FLARE_long <- melt(FLARE, id=c("full_time_day"))
 FLARE_long$full_time_day <- as.POSIXct(strptime(FLARE_long$full_time_day, '%Y-%m-%d', tz = 'EST'))
 full_ebullition_model$time <- as.POSIXct(strptime(full_ebullition_model$time, '%Y-%m-%d', tz = 'EST'))
 
+
+# PLOT THE TEMPERATURE FORECASTS AGAINST THE OBSERVED CATWALK DATA --> This is basically FLARE proper with the ENKF
 ggplot()+
   geom_line(data = FLARE_long, aes(full_time_day, value, group = variable), color = "grey30")+
   geom_errorbar(data = full_ebullition_model, aes(x=time, ymin = cat_temp - cat_temp_sd, ymax = cat_temp + cat_temp_sd, position = "dodge"), color = "red")+
