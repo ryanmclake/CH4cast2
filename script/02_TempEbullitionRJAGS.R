@@ -1,6 +1,14 @@
 if (!"pacman" %in% installed.packages()) install.packages("pacman")
 pacman::p_load(tidyverse,rjags,runjags,MCMCvis,lubridate,tidybayes,R2jags, ggforce, reshape2)
 
+#All trap averaged ebullition model
+full_ebullition_model_short_all <- full_ebullition_model %>% group_by(time) %>% summarize_all(funs(mean), na.rm = T) %>% filter(time>="2019-06-10")
+full_ebullition_model_short_all$log_ebu_rate[sapply(full_ebullition_model_short_all$log_ebu_rate, is.nan)] <- NA
+full_ebullition_model_short_all$log_ebu_rate_sd[sapply(full_ebullition_model_short_all$log_ebu_rate_sd, is.nan)] <- NA
+full_ebullition_model_short_all$log_ebu_rate_lag[sapply(full_ebullition_model_short_all$log_ebu_rate_lag, is.nan)] <- NA
+full_ebullition_model_short_all$log_ebu_rate_lag_sd[sapply(full_ebullition_model_short_all$log_ebu_rate_lag_sd, is.nan)] <- NA
+
+
 # Develop the Temperature JAGS model
 # This really takes a while!
 #############################################################################################################################
@@ -641,14 +649,6 @@ ebu_latent_t4$time <- as.Date(ebu_latent_t4$time) - 7
 
 
 
-
-
-#All trap averaged ebullition model
-full_ebullition_model_short_all <- full_ebullition_model %>% group_by(time) %>% summarize_all(funs(mean), na.rm = T) %>% filter(time>="2019-06-10")
-full_ebullition_model_short_all$log_ebu_rate[sapply(full_ebullition_model_short_all$log_ebu_rate, is.nan)] <- NA
-full_ebullition_model_short_all$log_ebu_rate_sd[sapply(full_ebullition_model_short_all$log_ebu_rate_sd, is.nan)] <- NA
-full_ebullition_model_short_all$log_ebu_rate_lag[sapply(full_ebullition_model_short_all$log_ebu_rate_lag, is.nan)] <- NA
-full_ebullition_model_short_all$log_ebu_rate_lag_sd[sapply(full_ebullition_model_short_all$log_ebu_rate_lag_sd, is.nan)] <- NA
 
 subsetdate_ebu_model_all <- Reduce(rbind, split(full_ebullition_model_short_all, seq(as.factor(full_ebullition_model_short_all$time))), accumulate = T)
 output_ebu_model_all <- lapply(subsetdate_ebu_model_all, function(x) {
