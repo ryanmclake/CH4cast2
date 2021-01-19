@@ -2,11 +2,9 @@ if (!"pacman" %in% installed.packages()) install.packages("pacman")
 pacman::p_load(tidyverse,rjags,runjags,MCMCvis,lubridate,tidybayes,R2jags, ggforce, reshape2)
 
 #All trap averaged ebullition model
-full_ebullition_model_short_all <- full_ebullition_model %>% group_by(time) %>% summarize_all(funs(mean), na.rm = T) %>% filter(time>="2019-06-10")
+full_ebullition_model_short_all <- full_ebullition_model %>% group_by(time) %>% summarize_all(funs(mean), na.rm = T)
 full_ebullition_model_short_all$log_ebu_rate[sapply(full_ebullition_model_short_all$log_ebu_rate, is.nan)] <- NA
 full_ebullition_model_short_all$log_ebu_rate_sd[sapply(full_ebullition_model_short_all$log_ebu_rate_sd, is.nan)] <- NA
-full_ebullition_model_short_all$log_ebu_rate_lag[sapply(full_ebullition_model_short_all$log_ebu_rate_lag, is.nan)] <- NA
-full_ebullition_model_short_all$log_ebu_rate_lag_sd[sapply(full_ebullition_model_short_all$log_ebu_rate_lag_sd, is.nan)] <- NA
 
 
 # Develop the Temperature JAGS model
@@ -14,8 +12,8 @@ full_ebullition_model_short_all$log_ebu_rate_lag_sd[sapply(full_ebullition_model
 #############################################################################################################################
 temp_jags <- function(){
   for (i in 1:N){
-    hobo_temp[i] ~ dnorm(mu[i], tau) # tau is precision (1 / variance)
-    mu[i] <- beta1 + beta2 * cat_temp[i]
+    air_temp[i] ~ dnorm(mu[i], tau) # tau is precision (1 / variance)
+    mu[i] <- beta1 + beta2 * air_temp[i]
   }
   # Priors:
   beta1 ~ dnorm(0, 0.001) # intercept
@@ -28,14 +26,88 @@ init_values_temp <- function(){
 }
 output_temp <- c("beta1", "beta2", "sigma")
 
-#Trap #1 temperature model
-full_model_short_eb1 <- full_ebullition_model %>% filter(trap_id == "t1eb1") %>% filter(time >= "2019-06-10")
-subsetdate_eb1 <- Reduce(rbind, split(full_model_short_eb1, seq(as.factor(full_model_short_eb1$time))), accumulate = T)
+
+# Run the temperature scaling model as a 
+#Trap #1 temperature model for 2017 and 2018
+full_model_short_eb1_17_18 <- full_ebullition_model %>% filter(trap_id == "T1e1") %>% filter(time <= "2018-12-31")
+
+N <- nrow(full_model_short_eb1_17_18)
+hobo_temp <- full_model_short_eb1_17_18$hobo_temp
+air_temp <- full_model_short_eb1_17_18$air_temp
+data <- list("N", "hobo_temp", "air_temp")
+myinits <- init_values_temp
+parameters <- c("beta1", "beta2", "sigma")
+samples <- as.mcmc(jags(data, inits=myinits, parameters,
+                                     model.file = temp_jags, 
+                                     n.chains=3, n.iter=20000, 
+                                     n.burnin=5000, n.thin=10, DIC=F))
+gelman.plot(samples)
+gelman.diag(samples)
+plot(samples)
+
+
+#Trap #2 temperature model for 2017 and 2018
+full_model_short_eb2_17_18 <- full_ebullition_model %>% filter(trap_id == "T1e2") %>% filter(time <= "2018-12-31")
+
+N <- nrow(full_model_short_eb2_17_18)
+hobo_temp <- full_model_short_eb2_17_18$hobo_temp
+air_temp <- full_model_short_eb2_17_18$air_temp
+data <- list("N", "hobo_temp", "air_temp")
+myinits <- init_values_temp
+parameters <- c("beta1", "beta2", "sigma")
+samples <- as.mcmc(jags(data, inits=myinits, parameters,
+                        model.file = temp_jags, 
+                        n.chains=3, n.iter=20000, 
+                        n.burnin=5000, n.thin=10, DIC=F))
+gelman.plot(samples)
+gelman.diag(samples)
+plot(samples)
+
+
+#Trap #3 temperature model for 2017 and 2018
+full_model_short_eb3_17_18 <- full_ebullition_model %>% filter(trap_id == "T1e3") %>% filter(time <= "2018-12-31")
+
+N <- nrow(full_model_short_eb3_17_18)
+hobo_temp <- full_model_short_eb3_17_18$hobo_temp
+air_temp <- full_model_short_eb3_17_18$air_temp
+data <- list("N", "hobo_temp", "air_temp")
+myinits <- init_values_temp
+parameters <- c("beta1", "beta2", "sigma")
+samples <- as.mcmc(jags(data, inits=myinits, parameters,
+                        model.file = temp_jags, 
+                        n.chains=3, n.iter=20000, 
+                        n.burnin=5000, n.thin=10, DIC=F))
+gelman.plot(samples)
+gelman.diag(samples)
+plot(samples)
+
+
+#Trap #4 temperature model for 2017 and 2018
+full_model_short_eb4_17_18 <- full_ebullition_model %>% filter(trap_id == "T1e4") %>% filter(time <= "2018-12-31")
+
+N <- nrow(full_model_short_eb4_17_18)
+hobo_temp <- full_model_short_eb4_17_18$hobo_temp
+air_temp <- full_model_short_eb4_17_18$air_temp
+data <- list("N", "hobo_temp", "air_temp")
+myinits <- init_values_temp
+parameters <- c("beta1", "beta2", "sigma")
+samples <- as.mcmc(jags(data, inits=myinits, parameters,
+                        model.file = temp_jags, 
+                        n.chains=3, n.iter=20000, 
+                        n.burnin=5000, n.thin=10, DIC=F))
+gelman.plot(samples)
+gelman.diag(samples)
+plot(samples)
+
+
+### Run through the temperature model training daily for '17, '18, and '19. 
+full_temp_model_eb1<- full_ebullition_model %>% filter(trap_id == "T1e1")
+subsetdate_eb1 <- Reduce(rbind, split(full_temp_model_eb1, seq(as.factor(full_temp_model_eb1$time))), accumulate = T)
 output_model_eb1 <- lapply(subsetdate_eb1, function(x) {
   N <- nrow(x)
   hobo_temp <- x$hobo_temp
-  cat_temp <- x$cat_temp
-  data <- list("N", "hobo_temp", "cat_temp")
+  air_temp <- x$air_temp
+  data <- list("N", "hobo_temp", "air_temp")
   myinits <- init_values_temp
   parameters <- c("beta1", "beta2", "sigma")
   samples <- combine.mcmc(as.mcmc(jags(data, inits=myinits, parameters,
@@ -49,42 +121,45 @@ trap1_tempmodel_out <- map_df(output_model_eb1, ~as.data.frame(t(.)))
 
 # beta1 term
 beta1_t1 <- trap1_tempmodel_out[grep("beta1", rownames(trap1_tempmodel_out)),]
-beta1_t1 <- cbind(full_model_short_eb1$time, beta1_t1, deparse.level = 1)
-beta1_t1 <- melt(beta1_t1, id = "full_model_short_eb1$time")
+beta1_t1 <- cbind(full_temp_model_eb1$time, beta1_t1, deparse.level = 1)
+beta1_t1 <- melt(beta1_t1, id = "full_temp_model_eb1$time")
 
-beta1_t1 <- beta1_t1 %>% rename(time = `full_model_short_eb1$time`) %>%
+beta1_t1 <- beta1_t1 %>% rename(time = `full_temp_model_eb1$time`) %>%
   group_by(time)%>%
   summarize(beta1_t1_mean = mean(value),
             beta1_t1_sd = sd(value))
 
 # beta2 term
 beta2_t1 <- trap1_tempmodel_out[grep("beta2", rownames(trap1_tempmodel_out)),]
-beta2_t1 <- cbind(full_model_short_eb1$time, beta2_t1, deparse.level = 1)
-beta2_t1 <- melt(beta2_t1, id = "full_model_short_eb1$time")
+beta2_t1 <- cbind(full_temp_model_eb1$time, beta2_t1, deparse.level = 1)
+beta2_t1 <- melt(beta2_t1, id = "full_temp_model_eb1$time")
 
-beta2_t1 <- beta2_t1 %>% rename(time = `full_model_short_eb1$time`) %>%
+beta2_t1 <- beta2_t1 %>% rename(time = `full_temp_model_eb1$time`) %>%
   group_by(time)%>%
   summarize(beta2_t1_mean = mean(value),
             beta2_t1_sd = sd(value))
 # sigma term
 
 sigma_t1 <- trap1_tempmodel_out[grep("sigma", rownames(trap1_tempmodel_out)),]
-sigma_t1 <- cbind(full_model_short_eb1$time, sigma_t1, deparse.level = 1)
-sigma_t1 <- melt(sigma_t1, id = "full_model_short_eb1$time")
+sigma_t1 <- cbind(full_temp_model_eb1$time, sigma_t1, deparse.level = 1)
+sigma_t1 <- melt(sigma_t1, id = "full_temp_model_eb1$time")
 
-sigma_t1 <- sigma_t1 %>% rename(time = `full_model_short_eb1$time`) %>%
+sigma_t1 <- sigma_t1 %>% rename(time = `full_temp_model_eb1$time`) %>%
   group_by(time)%>%
   summarize(sigma_t1_mean = mean(value),
             sigma_t1_sd = sd(value))
 
+
+
+
 #Trap #2 temperature model
-full_model_short_eb2 <- full_ebullition_model %>% filter(trap_id == "t1eb2") %>% filter(time >= "2019-06-10")
+full_model_short_eb2 <- full_ebullition_model %>% filter(trap_id == "T1e2")
 subsetdate_eb2 <- Reduce(rbind, split(full_model_short_eb2, seq(as.factor(full_model_short_eb2$time))), accumulate = T)
 output_model_eb2 <- lapply(subsetdate_eb2, function(x) {
   N <- nrow(x)
   hobo_temp <- x$hobo_temp
-  cat_temp <- x$cat_temp
-  data <- list("N", "hobo_temp", "cat_temp")
+  air_temp <- x$air_temp
+  data <- list("N", "hobo_temp", "air_temp")
   myinits <- init_values_temp
   parameters <- c("beta1", "beta2", "sigma")
   samples <- combine.mcmc(as.mcmc(jags(data, inits=myinits, parameters,
@@ -126,13 +201,13 @@ sigma_t2 <- sigma_t2 %>% rename(time = `full_model_short_eb2$time`) %>%
             sigma_t2_sd = sd(value))
 
 #Trap #3 temperature model
-full_model_short_eb3 <- full_ebullition_model %>% filter(trap_id == "t1eb3") %>% filter(time >= "2019-06-10")
+full_model_short_eb3 <- full_ebullition_model %>% filter(trap_id == "T1e3")
 subsetdate_eb3 <- Reduce(rbind, split(full_model_short_eb3, seq(as.factor(full_model_short_eb3$time))), accumulate = T)
 output_model_eb3 <- lapply(subsetdate_eb3, function(x) {
   N <- nrow(x)
   hobo_temp <- x$hobo_temp
-  cat_temp <- x$cat_temp
-  data <- list("N", "hobo_temp", "cat_temp")
+  air_temp <- x$air_temp
+  data <- list("N", "hobo_temp", "air_temp")
   myinits <- init_values_temp
   parameters <- c("beta1", "beta2", "sigma")
   samples <- combine.mcmc(as.mcmc(jags(data, inits=myinits, parameters,
@@ -174,13 +249,13 @@ sigma_t3 <- sigma_t3 %>% rename(time = `full_model_short_eb3$time`) %>%
             sigma_t3_sd = sd(value))
 
 #Trap #4 temperature model
-full_model_short_eb4 <- full_ebullition_model %>% filter(trap_id == "t1eb4") %>% filter(time >= "2019-06-10")
+full_model_short_eb4 <- full_ebullition_model %>% filter(trap_id == "T1e4")
 subsetdate_eb4 <- Reduce(rbind, split(full_model_short_eb4, seq(as.factor(full_model_short_eb4$time))), accumulate = T)
 output_model_eb4 <- lapply(subsetdate_eb4, function(x) {
   N <- nrow(x)
   hobo_temp <- x$hobo_temp
-  cat_temp <- x$cat_temp
-  data <- list("N", "hobo_temp", "cat_temp")
+  air_temp <- x$air_temp
+  data <- list("N", "hobo_temp", "air_temp")
   myinits <- init_values_temp
   parameters <- c("beta1", "beta2", "sigma")
   samples <- combine.mcmc(as.mcmc(jags(data, inits=myinits, parameters,
@@ -227,8 +302,8 @@ subsetdate_trapall <- Reduce(rbind, split(full_ebullition_model_short_all, seq(a
 output_model_trapall <- lapply(subsetdate_trapall, function(x) {
   N <- nrow(x)
   hobo_temp <- x$hobo_temp
-  cat_temp <- x$cat_temp
-  data <- list("N", "hobo_temp", "cat_temp")
+  air_temp <- x$air_temp
+  data <- list("N", "hobo_temp", "air_temp")
   myinits <- init_values_temp
   parameters <- c("beta1", "beta2", "sigma")
   samples <- combine.mcmc(as.mcmc(jags(data, inits=myinits, parameters,
@@ -321,13 +396,15 @@ init_values_ebu <- function(){
 }
 output_ebu <- c("beta1", "beta2", "beta3", "sigma", "tau_obs", "ebu.latent")
 
+
+
 #Trap #1 ebullition model
 full_ebullition_model_short_eb1 <- full_ebullition_model %>% filter(trap_id == "t1eb1") %>% filter(time >= "2019-06-17")
 subsetdate_ebu_model_eb1 <- Reduce(rbind, split(full_ebullition_model_short_eb1, seq(as.factor(full_ebullition_model_short_eb1$time))), accumulate = T)
 output_ebu_model_eb1 <- lapply(subsetdate_ebu_model_eb1, function(x) {
   N <- nrow(x)
   hobo_temp <- x$hobo_temp
-  ebu.latent = x$log_ebu_rate_lag
+  ebu.latent = x$log_ebu_rate
   ebu.obs = x$log_ebu_rate
   data <- list("N", "hobo_temp", "ebu.latent", "ebu.obs")
   myinits <- init_values_ebu

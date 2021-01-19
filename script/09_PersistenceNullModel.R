@@ -25,6 +25,7 @@ RandomWalk = "
 model{
   # Priors
   x[1] ~ dnorm(x_ic,tau_init)
+  x[1] ~ dnorm(x_ic,tau_init)
   tau_add ~ dgamma(0.1,0.1)
   tau_init ~ dgamma(0.1,0.1)
   

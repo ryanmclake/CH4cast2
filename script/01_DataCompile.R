@@ -12,19 +12,19 @@ pacman::p_load(tidyverse,rjags,runjags,MCMCvis,lubridate,tidybayes,R2jags,ncdf4,
 
 # pull in catwalk data
 #########################################################################
-catwalk_main <- read_csv("./observed/Catwalk.csv", skip = 1)%>% 
-  dplyr::filter(TIMESTAMP >= "2018-12-31 12:00:00") %>%
-  dplyr::select(TIMESTAMP, wtr_2, wtr_3) %>%
-  dplyr::filter(wtr_2 != "NAN") %>%
-  dplyr::filter(wtr_3 != "NAN") %>%
-  dplyr::filter(TIMESTAMP != "NAN") %>%
-  dplyr::filter(TIMESTAMP != "YYYY_MM_DD_HH_MM_SS")%>%
-  dplyr::mutate(mean_ws_temp = (as.numeric(wtr_2)+as.numeric(wtr_3))/2) %>%
-  dplyr::select(TIMESTAMP, mean_ws_temp)%>%
-  dplyr::mutate(time = as_date(TIMESTAMP)) %>%
-  dplyr::group_by(time) %>%
-  dplyr::summarize(temperature = mean(mean_ws_temp, na.rm = TRUE),
-                   temperature_sd = sd(mean_ws_temp))
+# catwalk_main <- read_csv("./observed/Catwalk.csv", skip = 1)%>% 
+#   dplyr::filter(TIMESTAMP >= "2018-12-31 12:00:00") %>%
+#   dplyr::select(TIMESTAMP, wtr_2, wtr_3) %>%
+#   dplyr::filter(wtr_2 != "NAN") %>%
+#   dplyr::filter(wtr_3 != "NAN") %>%
+#   dplyr::filter(TIMESTAMP != "NAN") %>%
+#   dplyr::filter(TIMESTAMP != "YYYY_MM_DD_HH_MM_SS")%>%
+#   dplyr::mutate(mean_ws_temp = (as.numeric(wtr_2)+as.numeric(wtr_3))/2) %>%
+#   dplyr::select(TIMESTAMP, mean_ws_temp)%>%
+#   dplyr::mutate(time = as_date(TIMESTAMP)) %>%
+#   dplyr::group_by(time) %>%
+#   dplyr::summarize(temperature = mean(mean_ws_temp, na.rm = TRUE),
+#                    temperature_sd = sd(mean_ws_temp))
 #########################################################################
 
 
