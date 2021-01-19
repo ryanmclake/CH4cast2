@@ -11,6 +11,7 @@ pacman::p_load(tidyverse,rjags,runjags,MCMCvis,lubridate,tidybayes,R2jags,ncdf4,
 ### Pull together all of the observed ebullition, hobo temperature, and catwalk temperature data from 2019
 
 # pull in catwalk data
+#########################################################################
 catwalk_main <- read_csv("./observed/Catwalk.csv", skip = 1)%>% 
   dplyr::filter(TIMESTAMP >= "2018-12-31 12:00:00") %>%
   dplyr::select(TIMESTAMP, wtr_2, wtr_3) %>%
@@ -24,91 +25,99 @@ catwalk_main <- read_csv("./observed/Catwalk.csv", skip = 1)%>%
   dplyr::group_by(time) %>%
   dplyr::summarize(temperature = mean(mean_ws_temp, na.rm = TRUE),
                    temperature_sd = sd(mean_ws_temp))
+#########################################################################
+
+
+# pull in meteorological data
+met <- read_csv("./observed/Met_final_2015_2019.csv")
+
+# organize  the met data that is used to train the model from Air Temp to SWI temperatures
+met_sum <- met %>%
+  select(DateTime, AirTemp_Average_C)%>%
+  mutate(time = as_date(DateTime))%>%
+  group_by(time) %>%
+  summarize(temperature = mean(AirTemp_Average_C, na.rm = TRUE),
+                   temperature_sd = sd(AirTemp_Average_C))
 
 # Pull in hobo data 
-hobo <- read_csv("./observed/Hobo.csv")%>% 
-  dplyr::filter(Date >= "2018-12-31 12:00:00") %>%
-  dplyr::rename(time = Date)%>%
+# Hobo data for Trap 1
+hobo_t1 <- read_csv("./observed/EDI_DATA_HOBO_TEMPS_2017_2019.csv")%>%
+  filter(Site == "T1e1") %>%
+  dplyr::rename(time = DateTime)%>%
   dplyr::mutate(time = as_date(time))%>%
   dplyr::group_by(time) %>%
-  dplyr::summarize(temperature = mean(Temp_C, na.rm = TRUE),
-                   temperature_sd = sd(Temp_C, na.rm = TRUE))
-  
-hobo_t1 <- read_csv("./observed/t1eb1_sed_temp.csv")%>% 
+  dplyr::summarize(temperature = mean(Sed_temp, na.rm = TRUE),
+                   temperature_sd = sd(Sed_temp, na.rm = TRUE))
+
+temp_model_t1 <- left_join(met_sum, hobo_t1, by = "time")%>%
+  rename(air_temp = temperature.x, air_temp_sd = temperature_sd.x, hobo_temp = temperature.y, hobo_temp_sd = temperature_sd.y)%>%
+  mutate(trap_id = "T1e1") %>% select(time, trap_id, air_temp, air_temp_sd, hobo_temp, hobo_temp_sd)
+
+# Hobo data for Trap 2
+hobo_t2 <- read_csv("./observed/EDI_DATA_HOBO_TEMPS_2017_2019.csv")%>%
+  filter(Site == "T1e2") %>%
+  dplyr::rename(time = DateTime)%>%
   dplyr::mutate(time = as_date(time))%>%
   dplyr::group_by(time) %>%
-  dplyr::summarize(temperature = mean(temp_C, na.rm = TRUE),
-                   temperature_sd = sd(temp_C, na.rm = TRUE))%>%
-  dplyr::mutate(trap_id = "t1eb1")%>%
-  dplyr::full_join(., hobo, by = "time")%>%
-  dplyr:: mutate(temperature.x = ifelse(is.na(temperature.x), temperature.y, temperature.x))%>%
-  dplyr::mutate(temperature_sd.x = ifelse(is.na(temperature_sd.x), temperature_sd.y, temperature_sd.x))%>%
-  dplyr::select(time, trap_id, temperature.x, temperature_sd.x) %>% rename(temperature = temperature.x, temperature_sd = temperature_sd.x)
+  dplyr::summarize(temperature = mean(Sed_temp, na.rm = TRUE),
+                   temperature_sd = sd(Sed_temp, na.rm = TRUE))
 
-hobo_t2 <- read_csv("./observed/t1eb2_sed_temp.csv")%>% 
+temp_model_t2 <- left_join(met_sum, hobo_t2, by = "time")%>%
+  rename(air_temp = temperature.x, air_temp_sd = temperature_sd.x, hobo_temp = temperature.y, hobo_temp_sd = temperature_sd.y)%>%
+  mutate(trap_id = "T1e2") %>% select(time, trap_id, air_temp, air_temp_sd, hobo_temp, hobo_temp_sd)
+
+
+# Hobo data for Trap 3
+hobo_t3 <- read_csv("./observed/EDI_DATA_HOBO_TEMPS_2017_2019.csv")%>%
+  filter(Site == "T1e3") %>%
+  dplyr::rename(time = DateTime)%>%
   dplyr::mutate(time = as_date(time))%>%
   dplyr::group_by(time) %>%
-  dplyr::summarize(temperature = mean(temp_C, na.rm = TRUE),
-                   temperature_sd = sd(temp_C, na.rm = TRUE))%>%
-  mutate(trap_id = "t1eb2")%>%
-  dplyr::full_join(., hobo, by = "time")%>%
-  dplyr:: mutate(temperature.x = ifelse(is.na(temperature.x), temperature.y, temperature.x))%>%
-  dplyr::mutate(temperature_sd.x = ifelse(is.na(temperature_sd.x), temperature_sd.y, temperature_sd.x))%>%
-  dplyr::select(time, trap_id, temperature.x, temperature_sd.x) %>% rename(temperature = temperature.x, temperature_sd = temperature_sd.x)
+  dplyr::summarize(temperature = mean(Sed_temp, na.rm = TRUE),
+                   temperature_sd = sd(Sed_temp, na.rm = TRUE))
 
-hobo_t3 <- read_csv("./observed/t1eb3_sed_temp.csv")%>% 
+temp_model_t3 <- left_join(met_sum, hobo_t3, by = "time")%>%
+  rename(air_temp = temperature.x, air_temp_sd = temperature_sd.x, hobo_temp = temperature.y, hobo_temp_sd = temperature_sd.y)%>%
+  mutate(trap_id = "T1e3") %>% select(time, trap_id, air_temp, air_temp_sd, hobo_temp, hobo_temp_sd)
+
+# Hobo data for Trap 4
+hobo_t4 <- read_csv("./observed/EDI_DATA_HOBO_TEMPS_2017_2019.csv")%>%
+  filter(Site == "T1e4") %>%
+  dplyr::rename(time = DateTime)%>%
   dplyr::mutate(time = as_date(time))%>%
   dplyr::group_by(time) %>%
-  dplyr::summarize(temperature = mean(temp_C, na.rm = TRUE),
-                   temperature_sd = sd(temp_C, na.rm = TRUE))%>%
-  mutate(trap_id = "t1eb3")%>%
-  dplyr::full_join(., hobo, by = "time")%>%
-  dplyr:: mutate(temperature.x = ifelse(is.na(temperature.x), temperature.y, temperature.x))%>%
-  dplyr::mutate(temperature_sd.x = ifelse(is.na(temperature_sd.x), temperature_sd.y, temperature_sd.x))%>%
-  dplyr::select(time, trap_id, temperature.x, temperature_sd.x) %>% rename(temperature = temperature.x, temperature_sd = temperature_sd.x)
+  dplyr::summarize(temperature = mean(Sed_temp, na.rm = TRUE),
+                   temperature_sd = sd(Sed_temp, na.rm = TRUE))
 
-hobo_t4 <- read_csv("./observed/t1eb4_sed_temp.csv")%>% 
-  dplyr::mutate(time = as_date(time))%>%
-  dplyr::group_by(time) %>%
-  dplyr::summarize(temperature = mean(temp_C, na.rm = TRUE),
-                   temperature_sd = sd(temp_C, na.rm = TRUE))%>%
-  mutate(trap_id = "t1eb4")%>%
-  dplyr::full_join(., hobo, by = "time")%>%
-  dplyr:: mutate(temperature.x = ifelse(is.na(temperature.x), temperature.y, temperature.x))%>%
-  dplyr::mutate(temperature_sd.x = ifelse(is.na(temperature_sd.x), temperature_sd.y, temperature_sd.x))%>%
-  dplyr::select(time, trap_id, temperature.x, temperature_sd.x) %>% rename(temperature = temperature.x, temperature_sd = temperature_sd.x)
+temp_model_t4 <- left_join(met_sum, hobo_t4, by = "time")%>%
+  rename(air_temp = temperature.x, air_temp_sd = temperature_sd.x, hobo_temp = temperature.y, hobo_temp_sd = temperature_sd.y)%>%
+  mutate(trap_id = "T1e4") %>% select(time, trap_id, air_temp, air_temp_sd, hobo_temp, hobo_temp_sd)
 
-temp_model_t1 <- left_join(catwalk_main, hobo_t1, by = "time") %>% filter(time >= "2019-05-27") %>% filter(time <= "2019-11-07")%>%
-  rename(cat_temp = temperature.x, cat_temp_sd = temperature_sd.x, hobo_temp = temperature.y, hobo_temp_sd = temperature_sd.y)%>%
-  mutate(trap_id = "t1eb1") %>% select(time, trap_id, cat_temp, cat_temp_sd, hobo_temp, hobo_temp_sd)
-
-temp_model_t2 <- left_join(catwalk_main, hobo_t2, by = "time") %>% filter(time >= "2019-05-27") %>% filter(time <= "2019-11-07")%>%
-  rename(cat_temp = temperature.x, cat_temp_sd = temperature_sd.x, hobo_temp = temperature.y, hobo_temp_sd = temperature_sd.y)%>%
-  mutate(trap_id = "t1eb2") %>% select(time, trap_id, cat_temp, cat_temp_sd, hobo_temp, hobo_temp_sd)
-
-temp_model_t3 <- left_join(catwalk_main, hobo_t3, by = "time") %>% filter(time >= "2019-05-27") %>% filter(time <= "2019-11-07")%>%
-  rename(cat_temp = temperature.x, cat_temp_sd = temperature_sd.x, hobo_temp = temperature.y, hobo_temp_sd = temperature_sd.y)%>%
-  mutate(trap_id = "t1eb3") %>% select(time, trap_id, cat_temp, cat_temp_sd, hobo_temp, hobo_temp_sd)
-
-temp_model_t4 <- left_join(catwalk_main, hobo_t4, by = "time") %>% filter(time >= "2019-05-27") %>% filter(time <= "2019-11-07")%>%
-  rename(cat_temp = temperature.x, cat_temp_sd = temperature_sd.x, hobo_temp = temperature.y, hobo_temp_sd = temperature_sd.y)%>%
-  mutate(trap_id = "t1eb4") %>% select(time, trap_id, cat_temp, cat_temp_sd, hobo_temp, hobo_temp_sd)
-
-# Bind the trap specific temperature scaling models
-# Essentially this is the hobo temp and the catwalk temp
 temp_all <- rbind(temp_model_t1, temp_model_t2, temp_model_t3, temp_model_t4)
 
-# Read in the observed ebullition throughout the 2019
-ebu <- read_csv("./observed/observed_ebu_rates.csv") %>%
-  rename(time = date) %>%
-  group_by(time, trap_id) %>%
-  summarize(log_ebu_rate = mean(log_ebu_rate_mg_m2_d, na.rm = TRUE),
-            log_ebu_rate_sd = sd(log_ebu_rate_mg_m2_d, na.rm = TRUE)) %>%
-  group_by(trap_id)%>%
-  mutate(log_ebu_rate_lag = lag(log_ebu_rate)) %>%
-  mutate(log_ebu_rate_lag_sd = lag(log_ebu_rate_sd))
 
-full_ebullition_model <- full_join(temp_all, ebu, by = c("trap_id", "time"))
+# Read in the observed ebullition throughout the 2019
+ebu <- read_csv("./observed/EDI_DATA_EBU_DIFF_DEPTH_2015_2019.csv") %>%
+  rename(time = DateTime) %>%
+  filter(Transect == "T1")%>%
+  select(time, Site, Ebu_rate)%>%
+  group_by(time, Site) %>%
+  summarize(log_ebu_rate = mean(Ebu_rate, na.rm = TRUE),
+            log_ebu_rate_sd = sd(Ebu_rate, na.rm = TRUE))%>%
+  rename(trap_id = Site)
+
+full_ebullition_model <- full_join(temp_all, ebu, by = c("trap_id", "time")) %>%
+  filter(time >= "2017-04-30") 
+  
+full_ebullition_model$log_ebu_rate[is.nan(full_ebullition_model$log_ebu_rate)] <- NA
+
+
+
+
+
+
+
+
 
 
 
